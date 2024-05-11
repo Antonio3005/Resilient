@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context=".InfoActivity">
+
+    <ImageView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/close_button"
+        android:layout_margin="15dp"
+        android:src="@drawable/baseline_close_24" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_centerHorizontal="true"
+        android:text="Info"
+        android:textSize="24dp"
+        android:textColor="@color/black"
+        android:layout_margin="10dp"/>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginRight="50dp"
+        android:layout_marginLeft="50dp"
+        android:textColor="@color/black"
+        android:textSize="18dp"
+        android:text="Attivare le notifiche per l'app. Apri le impostazioni del tuo dispositivo.
+Seleziona Notifiche o App e notifiche.
+Cerca l'app per la quale vuoi attivare le notifiche e selezionala.
+Attiva l'opzione per consentire le notifiche.
+Autorizzare l'accesso alla fotocamera
+Apri le impostazioni del tuo dispositivo.
+Vai a App o Gestione app.
+Trova l'app per la quale vuoi autorizzare l'accesso alla fotocamera e selezionala.
+Seleziona Autorizzazioni o Permessi.
+Attiva l'autorizzazione per la fotocamera.
+Autorizzare attività fisica
+Vai nelle impostazioni del tuo dispositivo.
+Seleziona App o Gestione app.
+Cerca l'app che necessita l'accesso all'attività fisica.
+Seleziona Autorizzazioni o Permessi.
+Attiva l'opzione Attività fisica o Sensori corpo."
+        android:layout_marginBottom="50dp"/>
+
+</LinearLayout>

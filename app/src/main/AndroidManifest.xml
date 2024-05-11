@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@drawable/lotus_svgrepo_com"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        tools:targetApi="31">
+        <activity android:name=".SurveyActivity"
+                android:theme="@style/Theme.AppCompat.Light"/>
+        <activity android:name=".InfoActivity"
+            android:theme="@style/Theme.AppCompat.Light"/>
+        <activity android:name=".AppActivity"
+            android:theme="@style/Theme.AppCompat.Light"/>
+        <activity android:name=".StepsActivity"
+            android:theme="@style/Theme.AppCompat.Light"/>
+        <activity android:name=".ShowPhotoActivity"
+            android:theme="@style/Theme.AppCompat.Light"/>
+        <receiver android:name=".NotifyReceiver" />
+        <receiver android:name=".UpdateReceiver" />
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.AppCompat.Light"> <!-- Assicurati che il tema sia AppCompat -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="com.example.wellness.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/flie_paths" />
+        </provider>
+
+        <meta-data
+            android:name="preloaded_fonts"
+            android:resource="@array/preloaded_fonts" />
+    </application>
+
+    <!-- Permessi per la fotocamera -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- Permessi per i sensori del corpo -->
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+    <uses-permission android:name="android.permission.SENSOR_ACCELLEROMETER" />
+
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
+    <!-- Permessi per leggere e scrivere su storage esterno -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+
+</manifest>
