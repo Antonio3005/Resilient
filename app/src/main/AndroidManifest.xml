@@ -3,6 +3,43 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Polar SDK needs Bluetooth scan permission to search for BLE devices. Polar BLE SDK doesn't use the scan
+ to decide the location so "neverForLocation" permission flag can be used.-->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation"
+        tools:targetApi="s" />
+
+    <!-- Polar SDK needs Bluetooth connect permission to connect for found BLE devices.-->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
+    <!-- Allows Polar SDK to connect to paired bluetooth devices. Legacy Bluetooth permission,
+     which is needed on devices with API 30 (Android Q) or older. -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
+
+    <!-- Allows Polar SDK to discover and pair bluetooth devices. Legacy Bluetooth permission,
+     which is needed on devices with API 30 (Android Q) or older. -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30" />
+
+    <!-- Polar SDK needs the fine location permission to get results for Bluetooth scan. Request
+    fine location permission on devices with API 30 (Android Q). Note, if your application
+    needs location for other purposes than bluetooth then remove android:maxSdkVersion="30"-->
+    <uses-permission
+        android:name="android.permission.ACCESS_FINE_LOCATION"
+        android:maxSdkVersion="30" />
+
+    <!-- The coarse location permission is needed, if fine location permission is requested. Request
+      coarse location permission on devices with API 30 (Android Q). Note, if your application
+     needs location for other purposes than bluetooth then remove android:maxSdkVersion="30" -->
+    <uses-permission
+        android:name="android.permission.ACCESS_COARSE_LOCATION"
+        android:maxSdkVersion="30" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -12,17 +49,24 @@
         android:supportsRtl="true"
         tools:targetApi="31">
         <activity android:name=".SurveyActivity"
-                android:theme="@style/Theme.AppCompat.Light"/>
+                android:theme="@style/Theme.AppCompat.NoActionBar"/>
         <activity android:name=".InfoActivity"
-            android:theme="@style/Theme.AppCompat.Light"/>
+            android:theme="@style/Theme.AppCompat.NoActionBar"/>
         <activity android:name=".AppActivity"
-            android:theme="@style/Theme.AppCompat.Light"/>
+            android:theme="@style/Theme.AppCompat.NoActionBar"/>
         <activity android:name=".StepsActivity"
-            android:theme="@style/Theme.AppCompat.Light"/>
+            android:theme="@style/Theme.AppCompat.NoActionBar"/>
         <activity android:name=".ShowPhotoActivity"
-            android:theme="@style/Theme.AppCompat.Light"/>
+            android:theme="@style/Theme.AppCompat.NoActionBar"/>
+        <activity android:name=".ECGActivity"
+            android:theme="@style/Theme.AppCompat.NoActionBar"/>
+        <activity android:name=".PolarActivity"
+            android:theme="@style/Theme.AppCompat.NoActionBar"/>
+        <activity android:name=".StActivity"
+            android:theme="@style/Theme.AppCompat.NoActionBar"/>
         <receiver android:name=".NotifyReceiver" />
         <receiver android:name=".UpdateReceiver" />
+        <receiver android:name=".StepsReceiver" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

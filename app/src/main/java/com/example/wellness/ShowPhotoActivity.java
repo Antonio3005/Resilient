@@ -66,24 +66,6 @@ public class ShowPhotoActivity extends AppCompatActivity {
         return image;
     }
 
-    private void dispatchTakePictureIntent() {
-        Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
-            File photoFile = null;
-            try {
-                photoFile = createImageFile();
-            } catch (IOException ex) {
-                // Handle error
-            }
-            if (photoFile != null) {
-                Uri photoURI = FileProvider.getUriForFile(this,
-                        "com.example.wellness.fileprovider",
-                        photoFile);
-                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI);
-                startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
-            }
-        }
-    }
 
 
     private void takePhoto() {
@@ -129,11 +111,12 @@ public class ShowPhotoActivity extends AppCompatActivity {
         }
     }
 
-    private void saveImageToGallery(Bitmap bitmap) {
+    /*private void saveImageToGallery(Bitmap bitmap) {
         File storageDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
 
         String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
         String fileName = "IMG_" + timestamp + ".jpg";
+        String folderName = timestamp + "_sessione_" + ;
 
         File imageFile = new File(storageDir, fileName);
         try {
@@ -144,7 +127,95 @@ public class ShowPhotoActivity extends AppCompatActivity {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }*/
+
+    private void saveImageToGallery(Bitmap bitmap) {
+        // Ottieni la directory Documenti
+        File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
+
+        // Ottieni la data corrente e formatta il prefisso del nome della cartella
+        String date = new SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(new Date());
+        String sessionPrefix = date + "_Session";
+
+        // Trova la directory di sessione disponibile
+        File sessionDir = null;
+        boolean newSessionAllowed = true;
+        long currentTime = System.currentTimeMillis();
+        long oneHourInMillis = 60 * 60 * 1000;
+
+        for (int i = 1; i <= 3; i++) {
+            sessionDir = new File(documentsDir, sessionPrefix + i);
+            if (!sessionDir.exists()) {
+                if (isLastSessionOlderThanOneHour(documentsDir, sessionPrefix, currentTime, oneHourInMillis)) {
+                    sessionDir.mkdirs();
+                } else {
+                    newSessionAllowed = false;
+                }
+                break;
+            } else if (sessionDir.isDirectory() && !containsImages(sessionDir)) {
+                // La cartella esiste e non contiene immagini
+                break;
+            }
+        }
+
+        if (sessionDir == null || (sessionDir.exists() && sessionDir.list() != null && containsImages(sessionDir)) || !newSessionAllowed) {
+            Toast.makeText(this, "Numero massimo di sessioni per oggi raggiunto, tutte le cartelle piene o meno di un'ora dall'ultima sessione.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Nome file immagine
+        String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
+        String fileName = "IMG_" + timestamp + ".jpg";
+
+        // File immagine
+        File imageFile = new File(sessionDir, fileName);
+        try {
+            FileOutputStream outputStream = new FileOutputStream(imageFile);
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, outputStream);
+            outputStream.flush();
+            outputStream.close();
+            Toast.makeText(this, "Immagine salvata in: " + imageFile.getAbsolutePath(), Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Errore nel salvataggio dell'immagine", Toast.LENGTH_SHORT).show();
+        }
     }
+
+    private boolean containsImages(File directory) {
+        File[] files = directory.listFiles();
+        if (files == null) return false;
+        for (File file : files) {
+            if (file.isFile() && isImageFile(file)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isImageFile(File file) {
+        String[] imageExtensions = {"jpg", "jpeg", "png", "gif", "bmp"};
+        String fileName = file.getName().toLowerCase();
+        for (String extension : imageExtensions) {
+            if (fileName.endsWith(extension)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isLastSessionOlderThanOneHour(File documentsDir, String sessionPrefix, long currentTime, long oneHourInMillis) {
+        for (int i = 3; i >= 1; i--) {
+            File sessionDir = new File(documentsDir, sessionPrefix + i);
+            if (sessionDir.exists()) {
+                long lastModified = sessionDir.lastModified();
+                if ((currentTime - lastModified) < oneHourInMillis) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
 
     public void goHome() {
         home.setOnClickListener(new View.OnClickListener() {
@@ -155,4 +226,6 @@ public class ShowPhotoActivity extends AppCompatActivity {
             }
         });
     }
+
+
 }

@@ -26,6 +26,9 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+
 
 public class StepsActivity extends AppCompatActivity implements SensorEventListener {
 
@@ -42,6 +45,7 @@ public class StepsActivity extends AppCompatActivity implements SensorEventListe
     private TextView stepsCount;
 
     private CardView steps;
+
 
     @SuppressLint("MissingInflatedId")
     @Override
@@ -83,9 +87,20 @@ public class StepsActivity extends AppCompatActivity implements SensorEventListe
     @Override
     public void onSensorChanged(SensorEvent event) {
         if (event.sensor.getType() == Sensor.TYPE_STEP_COUNTER) {
-            totalSteps = (int) event.values[0];
-            int currentSteps = totalSteps-previewTotalSteps;
-            stepsCount.setText(String.valueOf(currentSteps));
+            int newTotalSteps = (int) event.values[0];
+
+            // Controllo se il dispositivo è stato riavviato
+            if (newTotalSteps < previewTotalSteps) {
+                // Il dispositivo è stato riavviato, resetta l'anteprima dei passi
+                previewTotalSteps = newTotalSteps;
+                stepsCount.setText(String.valueOf(0));
+            } else {
+                // Calcola i passi correnti solo se il valore del sensore è maggiore o uguale
+                int currentSteps = newTotalSteps - previewTotalSteps;
+                stepsCount.setText(String.valueOf(currentSteps));
+            }
+            saveData();
+
         }
     }
 
@@ -97,41 +112,51 @@ public class StepsActivity extends AppCompatActivity implements SensorEventListe
             sensorManager.registerListener(new SensorEventListener() {
                 @Override
                 public void onSensorChanged(SensorEvent event) {
+
                     if (event.sensor.getType() == Sensor.TYPE_STEP_COUNTER) {
                         // Ottieni il numero di passi rilevati dall'evento
                         int steps = (int)event.values[0];
                         SharedPreferences sharedPreferences = context.getSharedPreferences("myPref", Context.MODE_PRIVATE);
                         int presteps = sharedPreferences.getInt("key1",0);
-                        sharedPreferences.getInt("key2", 0);
+                        int current_steps;
+                        if(steps < presteps) {
+                            presteps = steps;
+                            current_steps = 0;
+                        } else {
+                            current_steps = steps-presteps;
+                        }
 
-                        int current_steps = steps-presteps;
-                        // Fai qualcosa con il numero di passi, ad esempio, salvalo o visualizzalo
                         Log.d("StepCounter", "Passi rilevati: " + current_steps);
 
-                        File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
+                        try{
+                            MainActivity.fileLock.lock();
+                            File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
 
-                        // Assicurati che la cartella esista
-                        if (!documentsDir.exists()) {
-                            documentsDir.mkdirs();  // Crea la cartella se non esiste
+                            // Assicurati che la cartella esista
+                            if (!documentsDir.exists()) {
+                                documentsDir.mkdirs();  // Crea la cartella se non esiste
+                            }
+
+                            // Crea il percorso per il file CSV
+                            File csvFile = new File(documentsDir, "dati.csv");
+
+                            try (FileWriter csvWriter = new FileWriter(csvFile, true)) {
+                                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                                String timestamp = sdf.format(new Date());  // Ottieni il timestamp corrente
+
+                                // Scrivi il timestamp e il numero di passi nel CSV
+
+                                csvWriter.append(timestamp).append(",").append(String.valueOf(current_steps)).append("\n");
+                                presteps = steps;
+                                resetSteps(context,presteps,steps);
+                                sensorManager.unregisterListener(this);
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        } finally {
+                            // Rilascia il lock dopo aver completato l'operazione di scrittura
+                            MainActivity.fileLock.unlock();
                         }
-
-                        // Crea il percorso per il file CSV
-                        File csvFile = new File(documentsDir, "dati.csv");
-
-                        try (FileWriter csvWriter = new FileWriter(csvFile, true)) {
-                            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-                            String timestamp = sdf.format(new Date());  // Ottieni il timestamp corrente
-
-                            // Scrivi il timestamp e il numero di passi nel CSV
-
-                            csvWriter.append(timestamp).append(",").append(String.valueOf(current_steps)).append("\n");
-                            presteps = steps;
-                            resetSteps(context,presteps,steps);
-                            sensorManager.unregisterListener(this);
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-
                     }
                 }
 
@@ -144,8 +169,6 @@ public class StepsActivity extends AppCompatActivity implements SensorEventListe
             // Il dispositivo non supporta il sensore di contapassi
             Log.e("StepCounter", "Il dispositivo non supporta il sensore di contapassi");
         }
-
-
 
     }
 
@@ -160,7 +183,6 @@ public class StepsActivity extends AppCompatActivity implements SensorEventListe
         SharedPreferences.Editor editor = sharedPreferences.edit();
         Log.d("preview", String.valueOf(previewTotalSteps));
         editor.putInt("key1",previewTotalSteps);
-        editor.putInt("key2", totalSteps);
         editor.apply();
     }
 
@@ -169,6 +191,7 @@ public class StepsActivity extends AppCompatActivity implements SensorEventListe
         int savedNumber = sharedPreferences.getInt("key1", 0);
         Log.d("saved", String.valueOf(savedNumber));
         previewTotalSteps = savedNumber;
+
     }
 
     /*public void saveStepsToCSV() {

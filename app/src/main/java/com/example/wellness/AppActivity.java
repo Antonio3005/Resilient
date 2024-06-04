@@ -36,6 +36,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -70,10 +71,6 @@ public class AppActivity extends AppCompatActivity {
         goHome();
 
         if (hasUsageStatsPermission()) {
-            // Ottieni le statistiche e aggiornare l'interfaccia utente
-            //List<UsageStats> usageStats = getUsageStats();
-            //UsageStatsAdapter adapter = new UsageStatsAdapter(usageStats);
-            //usageStatsRecyclerView.setAdapter(adapter);
             LocalDate today = LocalDate.now(); // Ottieni la data corrente
             getDailyStats(today);
             //saveAppUsageToCSV();
@@ -144,7 +141,16 @@ public class AppActivity extends AppCompatActivity {
                     tg.setText(convertMillisToHHMMSS(stats.getTotalTimeInForeground()));
                     editor.putLong("telegram", stats.getTotalTimeInForeground());
                 }  else if (stats.getPackageName().equals("com.whatsapp")) {
-                    wa.setText(convertMillisToHHMMSS(stats.getTotalTimeInForeground()));
+                    String str = convertMillisToHHMMSS(stats.getTotalTimeInForeground());
+                    String firstTwoChars = str.substring(0, 2);
+                    int num = Integer.parseInt(firstTwoChars);
+                    //soluzione provvisoria al bug delle 22h
+                    if(num >= 22) {
+                        num = num - 22;
+                        wa.setText(String.valueOf(num) + str.substring(2));
+                    } else {
+                        wa.setText(convertMillisToHHMMSS(stats.getTotalTimeInForeground()));
+                    }
                     Log.d("AppUsage", "WhatsApp Time used: " + stats.getTotalTimeInForeground());
                     editor.putLong("whatsapp", stats.getTotalTimeInForeground());
                 } else if (stats.getPackageName().equals("com.google.android.youtube")) {
@@ -246,10 +252,7 @@ public class AppActivity extends AppCompatActivity {
             return totalTime;
         }
     }
-
     public void getDailyStats(LocalDate date) {
-
-
         ZoneId utc = ZoneId.of("UTC");
         ZoneId defaultZone = ZoneId.systemDefault();
 
@@ -305,10 +308,10 @@ public class AppActivity extends AppCompatActivity {
 
             if (packageName.equals("com.instagram.android")) {
                 ig.setText(convertMillisToHHMMSS(totalTime));
-                //usare SharedPreferences
             } else if (packageName.equals("org.telegram.messenger")) {
                 tg.setText(convertMillisToHHMMSS(totalTime));
-            }  else if (packageName.equals("com.whatsapp")) {
+            } //else if (packageName.equals("com.whatsapp")) {
+            else if (packageName.equals("com.twitter.android")) {
                 wa.setText(convertMillisToHHMMSS(totalTime));
             } else if (packageName.equals("com.google.android.youtube")) {
                 yt.setText(convertMillisToHHMMSS(totalTime));
@@ -378,15 +381,18 @@ public class AppActivity extends AppCompatActivity {
                 totalTime += end - 1000 - startTime;
             }
 
-            if (packageName.equals("com.facebook.katana") || packageName.equals("com.zhiliaoapp.musically") || packageName.equals("com.google.android.youtube") || packageName.equals("org.telegram.messenger") || packageName.equals("com.whatsapp") || packageName.equals("com.instagram.android"))
+            if (packageName.equals("com.facebook.katana") || packageName.equals("com.zhiliaoapp.musically") || packageName.equals("com.google.android.youtube") || packageName.equals("org.telegram.messenger") || packageName.equals("com.twitter.android") || packageName.equals("com.instagram.android")) {
                 stats.add(new Stat(packageName, totalTime, startTimes));
+            }
+
         }
 
         String data = "";
         List<String> expectedPackages = Arrays.asList(
                 "com.instagram.android",
                 "org.telegram.messenger",
-                "com.whatsapp",
+                //"com.whatsapp",
+                "com.twitter.android",
                 "com.google.android.youtube",
                 "com.zhiliaoapp.musically",
                 "com.facebook.katana"
@@ -417,25 +423,43 @@ public class AppActivity extends AppCompatActivity {
         }
         System.out.println(data); // Stampa il risultato finale
 
-        File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
 
-        // Assicurati che la cartella esista
-        if (!documentsDir.exists()) {
-            documentsDir.mkdirs();  // Crea la cartella se non esiste
+        try{
+            MainActivity.fileLock.lock();
+            File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
+
+            // Assicurati che la cartella esista
+            if (!documentsDir.exists()) {
+                documentsDir.mkdirs();  // Crea la cartella se non esiste
+            }
+
+            String dt = new SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(new Date());
+            String sessionPrefix = dt + "_Session";
+
+            File sessionDir = null;
+
+            for(int i=1; i<=3; i++) {
+                sessionDir = new File(documentsDir,sessionPrefix+i);
+                // Crea il percorso per il file CSV
+                if(sessionDir.exists()) {
+                    File csvFile = new File(sessionDir, "dati.csv");
+                    try (FileWriter csvWriter = new FileWriter(csvFile, true)) {
+                        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                        String timestamp = sdf.format(new Date());  // Ottieni il timestamp corrente
+
+                        csvWriter.append(timestamp).append(",").append(data).append("\n");
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        } finally {
+            MainActivity.fileLock.lock();
         }
 
-        // Crea il percorso per il file CSV
-        File csvFile = new File(documentsDir, "dati.csv");
-        try (FileWriter csvWriter = new FileWriter(csvFile, true)) {
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-            String timestamp = sdf.format(new Date());  // Ottieni il timestamp corrente
-
-            csvWriter.append(timestamp).append(",").append(data).append("\n");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
 
     }
+
 }
 
 

@@ -5,48 +5,40 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    tools:context=".InfoActivity">
+    tools:context=".InfoActivity"
+    android:background="@color/white"
+    android:paddingLeft="16dp"
+    android:paddingRight="16dp">
 
     <ImageView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:id="@+id/close_button"
-        android:layout_margin="15dp"
+        android:layout_marginTop="15dp"
         android:src="@drawable/baseline_close_24" />
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="center_horizontal"
-        android:layout_centerHorizontal="true"
         android:text="Info"
-        android:textSize="24dp"
-        android:textColor="@color/black"
-        android:layout_margin="10dp"/>
+        android:textSize="30dp"
+        android:layout_gravity="center"
+        android:layout_margin="5dp"
+        android:textColor="#000"
+        android:textStyle="bold"/>
 
     <TextView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_marginRight="50dp"
-        android:layout_marginLeft="50dp"
         android:textColor="@color/black"
-        android:textSize="18dp"
-        android:text="Attivare le notifiche per l'app. Apri le impostazioni del tuo dispositivo.
-Seleziona Notifiche o App e notifiche.
-Cerca l'app per la quale vuoi attivare le notifiche e selezionala.
-Attiva l'opzione per consentire le notifiche.
-Autorizzare l'accesso alla fotocamera
-Apri le impostazioni del tuo dispositivo.
-Vai a App o Gestione app.
-Trova l'app per la quale vuoi autorizzare l'accesso alla fotocamera e selezionala.
-Seleziona Autorizzazioni o Permessi.
-Attiva l'autorizzazione per la fotocamera.
-Autorizzare attività fisica
-Vai nelle impostazioni del tuo dispositivo.
-Seleziona App o Gestione app.
-Cerca l'app che necessita l'accesso all'attività fisica.
-Seleziona Autorizzazioni o Permessi.
-Attiva l'opzione Attività fisica o Sensori corpo."
+        android:textSize="20dp"
+        android:text=" \n- Per far si che l'applicazione funzioni correttamente recarsi nelle impostazioni del telefono.\n\n - Nella barra di ricerca digitare gestione app o simile in base al tipo di smatphone.\n\n - Tra le app presenti nella lista cercare e aprire Resilient.\n\n -  Una volta aperta la schermata consentire l'uso delle notifiche.\n\n - Successivamente aprire autorizzazioni/permessi e autorizzare le seguenti voci:\n
+        Attività fisica\n
+        Fotocamera\n
+        Dispositivi nelle vicinanze\n
+        Notifiche\n\n
+ - Contatti:\n
+        antonioinv1@hotmail.it"
         android:layout_marginBottom="50dp"/>
 
 </LinearLayout>

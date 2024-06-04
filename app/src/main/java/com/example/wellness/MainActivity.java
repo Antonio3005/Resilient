@@ -11,6 +11,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
 
 import java.util.Calendar;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -19,7 +21,12 @@ public class MainActivity extends AppCompatActivity {
     private CardView app;
     private CardView steps;
 
-    private ImageView info;
+    private CardView info;
+
+    private CardView polar;
+
+    public static final Lock fileLock = new ReentrantLock();
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -30,17 +37,30 @@ public class MainActivity extends AppCompatActivity {
         steps=findViewById(R.id.steps_card);
         app=findViewById(R.id.app_card);
         survey=findViewById(R.id.survey_card);
-        info=findViewById(R.id.info_button);
+        info=findViewById(R.id.info_card);
+        polar=findViewById(R.id.polar_card);
 
         setupNotifyAlarm();
         updateAlarm();
+        stepsAlarm();
 
         openStepsActivity();
         openAppsActivity();
         openSurveyActivity();
         openCameraActivity();
+        openPolarActivity();
         openInfo();
 
+    }
+
+    private void openPolarActivity() {
+        polar.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Intent intent = new Intent(MainActivity.this, PolarActivity.class);
+                startActivity(intent);
+            }
+        });
     }
 
     private void openCameraActivity() {
@@ -57,7 +77,7 @@ public class MainActivity extends AppCompatActivity {
         steps.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Intent intent = new Intent(MainActivity.this, StepsActivity.class);
+                Intent intent = new Intent(MainActivity.this, StActivity.class);
                 startActivity(intent);
             }
         });
@@ -118,7 +138,25 @@ public class MainActivity extends AppCompatActivity {
 
         Calendar calendar = Calendar.getInstance();
         calendar.set(Calendar.HOUR_OF_DAY, 23);
-        calendar.set(Calendar.MINUTE, 58);
+        calendar.set(Calendar.MINUTE, 15);
+        calendar.set(Calendar.SECOND, 0);
+
+        long triggerTime = calendar.getTimeInMillis();
+        if (System.currentTimeMillis() > triggerTime) {
+            triggerTime += 24 * 60 * 60 * 1000;  // Se l'ora è passata, aggiungi un giorno
+        }
+
+        alarmManager.setRepeating(AlarmManager.RTC_WAKEUP, triggerTime, 24 * 60 * 60 * 1000, pendingIntent);  // Allarme giornaliero
+    }
+
+    private void stepsAlarm() {
+        AlarmManager alarmManager = (AlarmManager) getSystemService(ALARM_SERVICE);
+        Intent intent = new Intent(this, StepsReceiver.class);
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+        Calendar calendar = Calendar.getInstance();
+        calendar.set(Calendar.HOUR_OF_DAY, 23);
+        calendar.set(Calendar.MINUTE, 30);
         calendar.set(Calendar.SECOND, 0);
 
         long triggerTime = calendar.getTimeInMillis();

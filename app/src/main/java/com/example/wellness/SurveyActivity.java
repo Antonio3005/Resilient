@@ -3,6 +3,7 @@ package com.example.wellness;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Environment;
+import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.RadioButton;
@@ -16,6 +17,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Locale;
 
 public class SurveyActivity extends AppCompatActivity {
 
@@ -66,12 +68,41 @@ public class SurveyActivity extends AppCompatActivity {
 
     private void saveSurveyResults(String[] responses) {
         File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
+        String date = new SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(new Date());
+        String sessionPrefix = date + "_Session";
 
-        if (!documentsDir.exists()) {
-            documentsDir.mkdirs();  // Crea la cartella se necessario
+        File sessionDir = null;
+        boolean newSessionAllowed = true;
+        long currentTime = System.currentTimeMillis();
+        long oneHourInMillis = 60 * 60 * 1000;
+
+
+        for(int i=1; i<=3; i++) {
+            sessionDir = new File(documentsDir, sessionPrefix + i);
+
+            if (!sessionDir.exists()) {
+                if (isLastSessionOlderThanOneHour(documentsDir, sessionPrefix, currentTime, oneHourInMillis)) {
+                    Log.d("bool", String.valueOf(sessionDir));
+                    sessionDir.mkdirs();
+                } else {
+                    newSessionAllowed = false;
+
+                }
+                break;
+            } else if (sessionDir.isDirectory() && !containsCsv(sessionDir)) {
+                // La cartella esiste e non contiene immagini
+                break;
+            }
+
         }
 
-        File csvFile = new File(documentsDir, "dati.csv");  // Percorso del file CSV
+        if (sessionDir == null || (sessionDir.exists() && sessionDir.list() != null && containsCsv(sessionDir)) || !newSessionAllowed) {
+            Log.d("session", String.valueOf(sessionDir));
+            Toast.makeText(this, "Numero massimo di sessioni per oggi raggiunto, tutte le cartelle piene o meno di un'ora dall'ultima sessione.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        File csvFile = new File(sessionDir, "dati.csv");
 
         try (FileWriter csvWriter = new FileWriter(csvFile, true)) {
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -85,9 +116,45 @@ public class SurveyActivity extends AppCompatActivity {
             csvWriter.append("\n");  // Vai a capo
 
             csvWriter.flush();  // Assicurati che i dati siano scritti
+            csvWriter.close();
+            Toast.makeText(this, "Risposte salvate in: " + csvFile.getAbsolutePath(), Toast.LENGTH_LONG).show();
         } catch (IOException e) {
             e.printStackTrace();
+            Toast.makeText(this, "Errore nel salvataggio dell'immagine", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    private boolean isLastSessionOlderThanOneHour(File documentsDir, String sessionPrefix, long currentTime, long oneHourInMillis) {
+        for (int i = 3; i >= 1; i--) {
+            File sessionDir = new File(documentsDir, sessionPrefix + i);
+            if (sessionDir.exists()) {
+                long lastModified = sessionDir.lastModified();
+                if ((currentTime - lastModified) < oneHourInMillis) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private boolean containsCsv(File directory) {
+        File[] files = directory.listFiles();
+        if (files == null) return false;
+        for (File file : files) {
+            if (file.isFile() && isCsvFile(file)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isCsvFile(File file) {
+        String fileExtensions = "csv";
+        String fileName = file.getName().toLowerCase();
+        if(fileName.endsWith(fileExtensions)) {
+            return true;
+        }
+        return false;
     }
 
     public void goHome() {
