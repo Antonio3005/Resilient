@@ -37,9 +37,9 @@ public class SurveyActivity extends AppCompatActivity {
         // Definire le domande e le opzioni di risposta
         questionGroups = new RadioGroup[]{
                 findViewById(R.id.question1_group),
-                findViewById(R.id.question2_group),
-                findViewById(R.id.question3_group),
-                findViewById(R.id.question4_group)
+                //findViewById(R.id.question2_group),
+                //findViewById(R.id.question3_group),
+                //findViewById(R.id.question4_group)
         };
 
         // Associare il pulsante di invio alla logica per salvare le risposte
@@ -68,6 +68,10 @@ public class SurveyActivity extends AppCompatActivity {
 
     private void saveSurveyResults(String[] responses) {
         File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
+        if(!documentsDir.exists()) {
+            documentsDir.mkdirs();
+            Log.d("folder:", documentsDir.getAbsolutePath());
+        }
         String date = new SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(new Date());
         String sessionPrefix = date + "_Session";
 
@@ -110,9 +114,11 @@ public class SurveyActivity extends AppCompatActivity {
 
             // Salva il timestamp e le risposte
             csvWriter.append(timestamp);  // Aggiungi il timestamp
-            for (String response : responses) {
+            csvWriter.append(",");
+            csvWriter.append(responses[0]);
+            /*for (String response : responses) {
                 csvWriter.append(",").append(response);  // Aggiungi le risposte
-            }
+            }*/
             csvWriter.append("\n");  // Vai a capo
 
             csvWriter.flush();  // Assicurati che i dati siano scritti
@@ -120,6 +126,7 @@ public class SurveyActivity extends AppCompatActivity {
             Toast.makeText(this, "Risposte salvate in: " + csvFile.getAbsolutePath(), Toast.LENGTH_LONG).show();
         } catch (IOException e) {
             e.printStackTrace();
+            Log.e("error", e.toString());
             Toast.makeText(this, "Errore nel salvataggio dell'immagine", Toast.LENGTH_SHORT).show();
         }
     }

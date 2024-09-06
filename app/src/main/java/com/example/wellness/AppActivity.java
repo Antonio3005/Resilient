@@ -252,7 +252,83 @@ public class AppActivity extends AppCompatActivity {
             return totalTime;
         }
     }
+
     public void getDailyStats(LocalDate date) {
+        ZoneId utc = ZoneId.of("UTC");
+        ZoneId defaultZone = ZoneId.systemDefault();
+
+        ZonedDateTime startDate = date.atStartOfDay(defaultZone).withZoneSameInstant(utc);
+        long start = startDate.toInstant().toEpochMilli();
+        long end = startDate.plusDays(1).toInstant().toEpochMilli();
+
+        Map<String, List<UsageEvents.Event>> sortedEvents = new HashMap<>();
+        UsageStatsManager usageManager = (UsageStatsManager) getSystemService(Context.USAGE_STATS_SERVICE);
+        UsageEvents systemEvents = usageManager.queryEvents(start, end); // `usageManager` needs initialization
+        while (systemEvents.hasNextEvent()) {
+            UsageEvents.Event event = new UsageEvents.Event();
+            systemEvents.getNextEvent(event);
+
+            sortedEvents
+                    .computeIfAbsent(event.getPackageName(), k -> new ArrayList<>())
+                    .add(event);
+        }
+
+        final long MAX_SESSION_TIME = TimeUnit.HOURS.toMillis(1); // Set a reasonable max session time limit
+
+        for (Map.Entry<String, List<UsageEvents.Event>> entry : sortedEvents.entrySet()) {
+            String packageName = entry.getKey();
+            List<UsageEvents.Event> events = entry.getValue();
+
+            long startTime = 0L;
+            long endTime = 0L;
+            long totalTime = 0L;
+            List<ZonedDateTime> startTimes = new ArrayList<>();
+
+            for (UsageEvents.Event event : events) {
+                if (event.getEventType() == UsageEvents.Event.MOVE_TO_FOREGROUND) {
+                    startTime = event.getTimeStamp();
+                    startTimes.add(Instant.ofEpochMilli(startTime).atZone(utc).withZoneSameInstant(defaultZone));
+                } else if (event.getEventType() == UsageEvents.Event.MOVE_TO_BACKGROUND) {
+                    endTime = event.getTimeStamp();
+
+                    if (startTime != 0L && endTime != 0L) {
+                        long sessionTime = endTime - startTime;
+                        if (sessionTime > MAX_SESSION_TIME) {
+                            sessionTime = MAX_SESSION_TIME;
+                        }
+                        totalTime += sessionTime;
+                        startTime = 0L;
+                        endTime = 0L;
+                    }
+                }
+            }
+
+            if (startTime != 0L && endTime == 0L) {
+                long sessionTime = end - 1000 - startTime;
+                if (sessionTime > MAX_SESSION_TIME) {
+                    sessionTime = MAX_SESSION_TIME;
+                }
+                totalTime += sessionTime;
+            }
+
+            // Update UI based on package name
+            if (packageName.equals("com.instagram.android")) {
+                ig.setText(convertMillisToHHMMSS(totalTime));
+            } else if (packageName.equals("org.telegram.messenger")) {
+                tg.setText(convertMillisToHHMMSS(totalTime));
+            } else if (packageName.equals("com.twitter.android")) {
+                wa.setText(convertMillisToHHMMSS(totalTime));
+            } else if (packageName.equals("com.google.android.youtube")) {
+                yt.setText(convertMillisToHHMMSS(totalTime));
+            } else if (packageName.equals("com.zhiliaoapp.musically")) {
+                tt.setText(convertMillisToHHMMSS(totalTime));
+            } else if (packageName.equals("com.facebook.katana")) {
+                fb.setText(convertMillisToHHMMSS(totalTime));
+            }
+        }
+    }
+
+    /*public void getDailyStats(LocalDate date) {
         ZoneId utc = ZoneId.of("UTC");
         ZoneId defaultZone = ZoneId.systemDefault();
 
@@ -324,10 +400,9 @@ public class AppActivity extends AppCompatActivity {
         }
 
 
-    }
+    }*/
 
     public static void saveData(Context context,LocalDate date) {
-        Log.d("Sono qui", date.toString());
         ZoneId utc = ZoneId.of("UTC");
         ZoneId defaultZone = ZoneId.systemDefault();
 
@@ -349,6 +424,8 @@ public class AppActivity extends AppCompatActivity {
 
         List<Stat> stats = new ArrayList<>();
 
+        final long MAX_SESSION_TIME = TimeUnit.HOURS.toMillis(1); // Set a reasonable max session time limit
+
         for (Map.Entry<String, List<UsageEvents.Event>> entry : sortedEvents.entrySet()) {
             String packageName = entry.getKey();
             List<UsageEvents.Event> events = entry.getValue();
@@ -364,22 +441,27 @@ public class AppActivity extends AppCompatActivity {
                     startTimes.add(Instant.ofEpochMilli(startTime).atZone(utc).withZoneSameInstant(defaultZone));
                 } else if (event.getEventType() == UsageEvents.Event.MOVE_TO_BACKGROUND) {
                     endTime = event.getTimeStamp();
-                }
 
-                if (startTime == 0L && endTime != 0L) {
-                    startTime = start;
-                }
-
-                if (startTime != 0L && endTime != 0L) {
-                    totalTime += endTime - startTime;
-                    startTime = 0L;
-                    endTime = 0L;
+                    if (startTime != 0L && endTime != 0L) {
+                        long sessionTime = endTime - startTime;
+                        if (sessionTime > MAX_SESSION_TIME) {
+                            sessionTime = MAX_SESSION_TIME;
+                        }
+                        totalTime += sessionTime;
+                        startTime = 0L;
+                        endTime = 0L;
+                    }
                 }
             }
 
             if (startTime != 0L && endTime == 0L) {
-                totalTime += end - 1000 - startTime;
+                long sessionTime = end - 1000 - startTime;
+                if (sessionTime > MAX_SESSION_TIME) {
+                    sessionTime = MAX_SESSION_TIME;
+                }
+                totalTime += sessionTime;
             }
+
 
             if (packageName.equals("com.facebook.katana") || packageName.equals("com.zhiliaoapp.musically") || packageName.equals("com.google.android.youtube") || packageName.equals("org.telegram.messenger") || packageName.equals("com.twitter.android") || packageName.equals("com.instagram.android")) {
                 stats.add(new Stat(packageName, totalTime, startTimes));

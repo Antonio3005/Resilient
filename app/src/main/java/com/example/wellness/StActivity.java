@@ -63,7 +63,7 @@ public class StActivity extends AppCompatActivity implements SensorEventListener
 
         sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
         stepCounterSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER);
-        //loadData();
+        loadData();
 
         //saveStepsToCSV();
 
@@ -77,10 +77,12 @@ public class StActivity extends AppCompatActivity implements SensorEventListener
         } else {
             sensorManager.registerListener(this, stepCounterSensor, SensorManager.SENSOR_DELAY_NORMAL);
         }
+        loadData();
     }
 
     protected void onPause() {
         super.onPause();
+        saveData();
         //sensorManager.unregisterListener(this);
 
     }
@@ -150,8 +152,12 @@ public class StActivity extends AppCompatActivity implements SensorEventListener
         });
     }
 
-    public static void saveStepsAsJson() {
-        //saveSteps = previewTotalSteps;
+    public static void saveStepsAsCsv(Context context) {
+        //int saveSteps = previewTotalSteps;
+        SharedPreferences sharedPreferences = context.getSharedPreferences("myPref", Context.MODE_PRIVATE);
+        int savedNumber = sharedPreferences.getInt("key1", 0);
+        Log.d("saved", String.valueOf(savedNumber));
+        //previewTotalSteps = savedNumber;
         try{
             MainActivity.fileLock.lock();
             File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
@@ -169,13 +175,14 @@ public class StActivity extends AppCompatActivity implements SensorEventListener
             for(int i=1; i<=3; i++) {
                 sessionDir = new File(documentsDir,sessionPrefix+i);
                 // Crea il percorso per il file CSV
+                Log.d("session", String.valueOf(sessionDir));
                 if(sessionDir.exists()) {
                     File csvFile = new File(sessionDir, "dati.csv");
                     try (FileWriter csvWriter = new FileWriter(csvFile, true)) {
                         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
                         String timestamp = sdf.format(new Date());  // Ottieni il timestamp corrente
 
-                        csvWriter.append(timestamp).append(",").append(String.valueOf(previewTotalSteps)).append("\n");
+                        csvWriter.append(timestamp).append(",").append(String.valueOf(savedNumber)).append("\n");
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
@@ -187,4 +194,6 @@ public class StActivity extends AppCompatActivity implements SensorEventListener
             MainActivity.fileLock.unlock();
         }
     }
+
+
 }

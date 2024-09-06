@@ -31,7 +31,7 @@ import java.util.Date;
 public class StepsReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
-        StActivity.saveStepsAsJson();
+        StActivity.saveStepsAsCsv(context);
     }
 }
 

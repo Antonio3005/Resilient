@@ -26,11 +26,10 @@ import com.polar.sdk.api.model.PolarHrData
 import com.polar.sdk.api.model.PolarSensorSetting
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.Disposable
-import java.io.File
-import java.io.FileWriter
-import java.io.IOException
+import java.io.*
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.concurrent.thread
 
 class ECGActivity : AppCompatActivity(), PlotterListener {
     companion object {
@@ -51,7 +50,11 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
     private lateinit var btn_start: Button
     private var isRecording = false
     private val recordedData = mutableListOf<String>()
+    private val recordedDataHR = mutableListOf<String>()
     private var recordingStartTime: Long = 0
+    private val buffer = mutableListOf<String>()
+    private val bufferSize = 1500  // Regola questa dimensione in base alla frequenza di campionamento
+
 
 
     private lateinit var deviceId: String
@@ -175,12 +178,45 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
     }
 
     private fun startRecording() {
+        val documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
+        // Ottieni la data corrente e formatta il prefisso del nome della cartella
+        val date = SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(Date())
+        val sessionPrefix = date + "_Session"
+
+        var sessionDir: File? = null
+        var newSessionAllowed = true
+        val currentTime = System.currentTimeMillis()
+        val oneHourInMillis = (60 * 60 * 1000).toLong()
+
+        for (i in 1..3) {
+            sessionDir = File(documentsDir, sessionPrefix + i)
+            if (!sessionDir.exists()) {
+                if (isLastSessionOlderThanOneHour(documentsDir, sessionPrefix, currentTime, oneHourInMillis)) {
+                    sessionDir.mkdirs()
+                } else {
+                    newSessionAllowed = false
+                }
+                break
+            } else if (sessionDir.isDirectory && !containsEcgDat(sessionDir) && !containsHrDat(sessionDir)) {
+                // La cartella esiste e non contiene immagini
+                break
+            }
+        }
+
+        if (sessionDir == null || sessionDir.exists() && sessionDir.list() != null && containsEcgDat(sessionDir) && containsHrDat(sessionDir) || !newSessionAllowed) {
+            Log.d("session", sessionDir.toString())
+            Toast.makeText(this, "Numero massimo di sessioni per oggi raggiunto, tutte le cartelle piene o meno di un'ora dall'ultima sessione.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
         isRecording = true
         recordedData.clear()
+        recordedDataHR.clear()
+        buffer.clear()
         recordingStartTime = System.currentTimeMillis()
         btn_start.text = "Stop Recording"
         Toast.makeText(this, "Recording started", Toast.LENGTH_SHORT).show()
-
+        startEcgStreamThread()
         // Stop recording after 10 minutes
         Handler(Looper.getMainLooper()).postDelayed({ stopRecording() }, 10 * 60 * 1000)
     }
@@ -189,7 +225,183 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         isRecording = false
         btn_start.text = "Start Recording"
         Toast.makeText(this, "Recording stopped", Toast.LENGTH_SHORT).show()
+        saveBufferToRecordedData()
         saveDataToJSON()
+        saveEcgToDat()
+
+        stopEcgStreamThread()
+    }
+
+    private fun saveBufferToRecordedData() {
+        synchronized(buffer) {
+            recordedData.addAll(buffer)
+            buffer.clear()
+        }
+    }
+
+    /*private fun saveHrToDat() {
+        val documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
+        // Ottieni la data corrente e formatta il prefisso del nome della cartella
+        val date = SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(Date())
+        val sessionPrefix = date + "_Session"
+
+        var sessionDir: File? = null
+        var newSessionAllowed = true
+        val currentTime = System.currentTimeMillis()
+        val oneHourInMillis = (60 * 60 * 1000).toLong()
+
+        for (i in 1..3) {
+            sessionDir = File(documentsDir, sessionPrefix + i)
+            if (!sessionDir.exists()) {
+                if (isLastSessionOlderThanOneHour(documentsDir, sessionPrefix, currentTime, oneHourInMillis)) {
+                    sessionDir.mkdirs()
+                } else {
+                    newSessionAllowed = false
+                }
+                break
+            } else if (sessionDir.isDirectory && !containsHrDat(sessionDir)) {
+                // La cartella esiste e non contiene immagini
+                break
+            }
+        }
+
+        if (sessionDir == null || sessionDir.exists() && sessionDir.list() != null && containsHrDat(sessionDir) || !newSessionAllowed) {
+            Log.d("session", sessionDir.toString())
+            Toast.makeText(this, "Numero massimo di sessioni per oggi raggiunto, tutte le cartelle piene o meno di un'ora dall'ultima sessione.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val datFile = File(sessionDir, "hr.dat")
+        try {
+            FileOutputStream(datFile).use { fos ->
+                val dataOutputStream = DataOutputStream(fos)
+                for (data in recordedDataHR) {
+                    val bytes = data.toByteArray(Charsets.UTF_8)
+                    dataOutputStream.writeInt(bytes.size) // Scrivi la dimensione dell'array di byte
+                    dataOutputStream.write(bytes) // Scrivi l'array di byte
+                }
+                dataOutputStream.close()
+            }
+            Toast.makeText(this, "Data saved to hr.dat", Toast.LENGTH_SHORT).show()
+        } catch (e: IOException) {
+            e.printStackTrace()
+            Toast.makeText(this, "Failed to save data", Toast.LENGTH_SHORT).show()
+        }
+    } */
+
+    private fun saveEcgToDat() {
+        val documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
+        // Ottieni la data corrente e formatta il prefisso del nome della cartella
+        val date = SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(Date())
+        val sessionPrefix = date + "_Session"
+
+        var sessionDir: File? = null
+        var newSessionAllowed = true
+        val currentTime = System.currentTimeMillis()
+        val oneHourInMillis = (60 * 60 * 1000).toLong()
+
+        for (i in 1..3) {
+            sessionDir = File(documentsDir, sessionPrefix + i)
+            if (!sessionDir.exists()) {
+                if (isLastSessionOlderThanOneHour(documentsDir, sessionPrefix, currentTime, oneHourInMillis)) {
+                    sessionDir.mkdirs()
+                } else {
+                    newSessionAllowed = false
+                }
+                break
+            } else if (sessionDir.isDirectory && !containsEcgDat(sessionDir) && !containsHrDat(sessionDir)) {
+                // La cartella esiste e non contiene immagini
+                break
+            }
+        }
+
+        if (sessionDir == null || sessionDir.exists() && sessionDir.list() != null && containsEcgDat(sessionDir) && containsHrDat(sessionDir) || !newSessionAllowed) {
+            Log.d("session", sessionDir.toString())
+            Toast.makeText(this, "Numero massimo di sessioni per oggi raggiunto, tutte le cartelle piene o meno di un'ora dall'ultima sessione.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val datFile = File(sessionDir, "ecg.dat")
+        try {
+            FileOutputStream(datFile).use { fos ->
+                val dataOutputStream = DataOutputStream(fos)
+                for (data in recordedData) {
+                    val bytes = data.toByteArray(Charsets.UTF_8)
+                    dataOutputStream.writeInt(bytes.size) // Scrivi la dimensione dell'array di byte
+                    dataOutputStream.write(bytes) // Scrivi l'array di byte
+                }
+                dataOutputStream.close()
+            }
+            Toast.makeText(this, "Data saved to ecg.dat", Toast.LENGTH_SHORT).show()
+        } catch (e: IOException) {
+            e.printStackTrace()
+            Toast.makeText(this, "Failed to save data", Toast.LENGTH_SHORT).show()
+        }
+        val hrFile = File(sessionDir, "hr.dat")
+        try {
+            FileOutputStream(hrFile).use { fos ->
+                val dataOutputStream = DataOutputStream(fos)
+                for (data in recordedDataHR) {
+                    val bytes = data.toByteArray(Charsets.UTF_8)
+                    dataOutputStream.writeInt(bytes.size) // Scrivi la dimensione dell'array di byte
+                    dataOutputStream.write(bytes) // Scrivi l'array di byte
+                }
+                dataOutputStream.close()
+            }
+            Toast.makeText(this, "Data saved to hr.dat", Toast.LENGTH_SHORT).show()
+        } catch (e: IOException) {
+            e.printStackTrace()
+            Toast.makeText(this, "Failed to save data", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun isLastSessionOlderThanOneHour(documentsDir: File, sessionPrefix: String, currentTime: Long, oneHourInMillis: Long): Boolean {
+        for (i in 3 downTo 1) {
+            val sessionDir = File(documentsDir, sessionPrefix + i)
+            if (sessionDir.exists()) {
+                val lastModified = sessionDir.lastModified()
+                if (currentTime - lastModified < oneHourInMillis) {
+                    return false
+                }
+            }
+        }
+        return true
+    }
+
+    private fun containsEcgDat(directory: File): Boolean {
+        val files = directory.listFiles() ?: return false
+        for (file in files) {
+            if (file.isFile && isEcgDatFile(file)) {
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun isEcgDatFile(file: File): Boolean {
+        val fileExtensions = "ecg.dat"
+        val fileName = file.name.lowercase(Locale.getDefault())
+        return if (fileName.equals(fileExtensions)) {
+            true
+        } else false
+    }
+
+    private fun containsHrDat(directory: File): Boolean {
+        val files = directory.listFiles() ?: return false
+        for (file in files) {
+            if (file.isFile && isHrDatFile(file)) {
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun isHrDatFile(file: File): Boolean {
+        val fileExtensions = "hr.dat"
+        val fileName = file.name.lowercase(Locale.getDefault())
+        return if (fileName.equals(fileExtensions)) {
+            true
+        } else false
     }
 
     private fun saveDataToJSON() {
@@ -203,9 +415,16 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         val gson = GsonBuilder().setPrettyPrinting().create()
         val jsonStr = gson.toJson(recordedData)
 
+        val hrfile = File(documentsDir, "hr.json")
+        val json = GsonBuilder().setPrettyPrinting().create()
+        val jsonString = json.toJson(recordedDataHR)
+
         try {
             FileWriter(jsonFile).use { writer ->
                 writer.write(jsonStr)
+            }
+            FileWriter(hrfile).use { writer ->
+                writer.write(jsonString)
             }
             Toast.makeText(this, "Data saved to ecg.json", Toast.LENGTH_SHORT).show()
         } catch (e: IOException) {
@@ -225,6 +444,73 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
         api.shutDown()
     }
 
+    private var ecgStreamThread: Thread? = null
+
+    private fun startEcgStreamThread() {
+        ecgStreamThread = thread(start = true) {
+            prova()
+        }
+    }
+
+    private fun stopEcgStreamThread() {
+        ecgStreamThread?.interrupt()
+    }
+    fun prova() {
+        while (!Thread.currentThread().isInterrupted) {
+            val isDisposed = ecgDisposable?.isDisposed ?: true
+            if (isDisposed) {
+                ecgDisposable = api.requestStreamSettings(deviceId, PolarBleApi.PolarDeviceDataType.ECG)
+                        .toFlowable()
+                        .flatMap { sensorSetting: PolarSensorSetting -> api.startEcgStreaming(deviceId, sensorSetting.maxSettings()) }
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe(
+                                { polarEcgData: PolarEcgData ->
+                                    for (data in polarEcgData.samples) {
+                                        ecgPlotter.sendSingleSample((data.voltage.toFloat() / 1000.0).toFloat())
+
+                                        if (isRecording) {
+                                            try {
+                                                val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                                                val timestamp = sdf.format(Date())
+                                                synchronized(buffer) {
+                                                    buffer.add("$timestamp,${(data.voltage.toFloat() / 1000.0).toString()}")
+                                                    if (buffer.size >= bufferSize) {
+                                                        saveBufferToRecordedData()
+                                                    }
+                                                }
+                                            } catch (e: Exception) {
+                                                e.printStackTrace()
+                                                Log.e(TAG, "Error while recording data: ${e.message}")
+                                            }
+                                        }
+                                    }
+                                    // Aggiornamenti dell'interfaccia utente e altre operazioni qui
+                                },
+                                { error: Throwable ->
+                                    Log.e(TAG, "Ecg stream failed $error")
+                                    ecgDisposable = null
+                                },
+                                {
+                                    Log.d(TAG, "Ecg stream complete")
+                                }
+                        )
+            } else {
+                // NOTE stops streaming if it is "running"
+                ecgDisposable?.dispose()
+                ecgDisposable = null
+            }
+
+            // Aggiungi un ritardo prima di eseguire nuovamente lo streaming
+            try {
+                Thread.sleep(1000) // Ritardo di 1 secondo
+            } catch (e: InterruptedException) {
+                Thread.currentThread().interrupt()
+            }
+        }
+    }
+
+
+
     fun streamECG() {
         val isDisposed = ecgDisposable?.isDisposed ?: true
         if (isDisposed) {
@@ -237,6 +523,22 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
                                 Log.d(TAG, "ecg update")
                                 for (data in polarEcgData.samples) {
                                     ecgPlotter.sendSingleSample((data.voltage.toFloat() / 1000.0).toFloat())
+
+                                    /*if (isRecording) {
+                                        try {
+                                            val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                                            val timestamp = sdf.format(Date())
+                                            synchronized(buffer) {
+                                                buffer.add("$timestamp,${(data.voltage.toFloat() / 1000.0).toString()}")
+                                                if (buffer.size >= bufferSize) {
+                                                    saveBufferToRecordedData()
+                                                }
+                                            }
+                                        } catch (e: Exception) {
+                                            e.printStackTrace()
+                                            Log.e(TAG, "Error while recording data: ${e.message}")
+                                        }
+                                    }*/
                                 }
                             },
                             { error: Throwable ->
@@ -272,10 +574,7 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
                                     if(isRecording) {
                                         val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
                                         val timestamp = sdf.format(Date()) // Ottieni il timestamp corrente
-                                        recordedData.add("$timestamp,${sample.hr.toString()},(${sample.rrsMs.joinToString(separator = "ms, ")}ms)")
-                                        for (l in recordedData) {
-                                            Log.d("Lista ", l)
-                                        }
+                                        recordedDataHR.add("$timestamp,${sample.hr.toString()},(${sample.rrsMs.joinToString(separator = "ms, ")}ms)")
 
                                     }
 

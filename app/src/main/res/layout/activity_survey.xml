@@ -83,7 +83,7 @@
                 android:drawableStart="@drawable/emoji_sad_svgrepo_com"/>
 
         </RadioGroup>
-
+        <!--
         <RadioGroup
             android:id="@+id/question2_group"
             android:layout_width="match_parent"
@@ -204,7 +204,7 @@
                 android:textColor="@color/white"
                 android:drawableStart="@drawable/emoji_sad_svgrepo_com"/>
 
-        </RadioGroup>
+        </RadioGroup> -->
 
         <Button
             android:id="@+id/submit_button"

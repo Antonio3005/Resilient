@@ -48,6 +48,7 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         tools:targetApi="31">
+        <!--android:requestLegacyExternalStorage="true" per android con sdk inferiori a 33 abilitare questo campo all'interno di application-->
         <activity android:name=".SurveyActivity"
                 android:theme="@style/Theme.AppCompat.NoActionBar"/>
         <activity android:name=".InfoActivity"
@@ -94,6 +95,8 @@
     <!-- Permessi per la fotocamera -->
     <uses-permission android:name="android.permission.CAMERA" />
 
+
+
     <!-- Permessi per i sensori del corpo -->
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
     <uses-permission android:name="android.permission.SENSOR_ACCELLEROMETER" />
@@ -104,5 +107,7 @@
 
     <!-- Permessi per leggere e scrivere su storage esterno -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+
 
 </manifest>
